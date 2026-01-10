@@ -36,7 +36,10 @@ async fn root() -> (HeaderMap, String) {
 #[tokio::main]
 async fn main() {
     let app = Router::new().route("/", get(root));
+    let port = std::env::args().nth(1).unwrap_or("3000".to_string());
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    println!("Listening on port {port}");
+
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
