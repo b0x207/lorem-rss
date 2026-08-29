@@ -1,6 +1,6 @@
 {
   inputs = {
-    flake-utils.url = "github:numtide/flake-utils";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     naersk = {
       url = "github:nix-community/naersk";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -15,71 +15,66 @@
   };
 
   outputs =
-    {
-      self,
-      flake-utils,
-      naersk,
-      treefmt-nix,
-      nixpkgs,
-      advisory-db,
-      ...
-    }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = (import nixpkgs) {
-          inherit system;
-        };
+    inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+      ];
 
-        naersk' = pkgs.callPackage naersk { };
-        treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
-      in
-      {
-        packages.default = naersk'.buildPackage {
-          src = ./.;
-        };
-
-        formatter = treefmtEval.config.build.wrapper;
-
-        devShells = pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [
-            rustc
-            cargo
-            rust-analyzer
-            clippy
-            cargo-audit
-          ];
-        };
-
-        checks = {
-          package = self.packages.${system}.default;
-
-          formatter = treefmtEval.config.build.check self;
-
-          clippy = naersk'.buildPackage {
+      perSystem =
+        { config, pkgs, ... }:
+        let
+          naersk' = pkgs.callPackage inputs.naersk { };
+          treefmtEval = inputs.treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
+        in
+        {
+          packages.default = naersk'.buildPackage {
             src = ./.;
-            mode = "clippy";
           };
 
-          cargo-audit = pkgs.stdenv.mkDerivation {
-            name = "cargo-audit-check";
-            src = ./.;
+          formatter = treefmtEval.config.build.wrapper;
 
+          devShells.default = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
+              rustc
               cargo
+              rust-analyzer
+              clippy
               cargo-audit
-              cacert
             ];
+          };
 
-            buildPhase = ''
-              export HOME=$(mktemp -d)
+          checks = {
+            package = config.packages.default;
 
-              cargo audit --no-yanked --no-fetch --db ${advisory-db}
-            '';
+            formatter = treefmtEval.config.build.check inputs.self;
 
-            installPhase = "touch $out";
+            clippy = naersk'.buildPackage {
+              src = ./.;
+              mode = "clippy";
+            };
+
+            cargo-audit = pkgs.stdenv.mkDerivation {
+              name = "cargo-audit-check";
+              src = ./.;
+
+              nativeBuildInputs = with pkgs; [
+                cargo
+                cargo-audit
+                cacert
+              ];
+
+              buildPhase = ''
+                export HOME=$(mktemp -d)
+
+                cargo audit --no-yanked --no-fetch --db ${inputs.advisory-db}
+              '';
+
+              installPhase = "touch $out";
+            };
           };
         };
-      }
-    );
+    };
 }
