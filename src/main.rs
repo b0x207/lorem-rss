@@ -28,7 +28,7 @@ async fn root(State(state): State<AppState>) -> (HeaderMap, String) {
             let faker = fake::faker::lorem::en::Paragraphs(5..10);
             faker.fake::<Vec<String>>().join("\n")
         };
-        let item_time = now - chrono::Duration::seconds(TIME_RATE * i as i64);
+        let item_time = now - chrono::Duration::seconds(TIME_RATE * i);
         rss::ItemBuilder::default()
             .title(Some(lorem_title))
             .content(Some(lorem_body))

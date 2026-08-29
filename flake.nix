@@ -41,7 +41,7 @@
 
         formatter = treefmtEval.config.build.wrapper;
 
-        devShell = pkgs.mkShell {
+        devShells = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
             rustc
             cargo
@@ -55,6 +55,11 @@
           package = self.packages.${system}.default;
 
           formatter = treefmtEval.config.build.check self;
+
+          clippy = naersk'.buildPackage {
+            src = ./.;
+            mode = "clippy";
+          };
 
           cargo-audit = pkgs.stdenv.mkDerivation {
             name = "cargo-audit-check";
