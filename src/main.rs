@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use axum::{
     Router,
     extract::State,
